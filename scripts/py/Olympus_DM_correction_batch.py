@@ -7,6 +7,8 @@ from ij.io import DirectoryChooser
 from ij.io import FileSaver
 from ij.gui import GenericDialog  
 from ij.plugin import RGBStackMerge
+from ij.plugin import ZProjector
+#from emblcmci import Extractfrom4D
 import math
 import sys
 import os
@@ -199,21 +201,30 @@ def processFile(filename, inDir, outDir, dichroics, mergeList):
 		FileSaver(ip).saveAsTiff(tifFilePath)
 
 	if merge:
+		max_list = []
 		for i in range(len(mergeList)):
 			if mergeList[i] != None:
 				mergeList[i] = readSingleChannelImg(tifFilePaths[mergeList[i]])
+				channel = mergeList[i]#https://python.hotexamples.com/examples/ij.plugin/RGBStackMerge/mergeChannels/python-rgbstackmerge-mergechannels-method-examples.html
+				projector = ZProjector(channel)
+				projector.setMethod(ZProjector.MAX_METHOD)
+				projector.doProjection()
+				max_list.append(projector.getProjection())
 		merged = RGBStackMerge.mergeChannels(mergeList, False)
+		merged_max = RGBStackMerge.mergeChannels(max_list, False)
 		mergedChannelFilepath = outDir + filenameExExt + ".tif"
+		maxMergedChannelFilepath = outDir + filenameExExt + "_max.tif"
 		if os.path.exists(mergedChannelFilepath):
 			IJ.log("\nOutput file exists: " + mergedChannelFilepath)
 			IJ.log("Rerun plugin choosing a different output folder")
 			IJ.log("or delete file and then rerun plugin.")
 			IJ.log("Image processing terminated!\n")
 		FileSaver(merged).saveAsTiff(mergedChannelFilepath)
+		FileSaver(merged_max).saveAsTiff(maxMergedChannelFilepath)
 		for tf in tifFilePaths:
 			os.remove(tf)
-		os.rmdir(tifDir)
-			
+		os.rmdir(tifDir)	
+
 	IJ.log("\nFinished processing file:\n" + filepath + "\n")
 	if merge:
 		IJ.log("Image file with channels aligned:\n" + outDir + filenameExExt + ".tif\n")
@@ -314,5 +325,13 @@ def processDirectory():
 			ml = None
 		processFile(o, inputDir, outputDir, dichroics, ml)
 		IJ.log("\n--------------------------\n")
-	
+
+#http://wiki.cmci.info/documents/120206pyip_cooking/python_imagej_cookbook#z_projection
+def maxZprojection(stackimp):
+	zp = ZProjector(stackimp)
+	zp.setMethod(ZProjector.MAX_METHOD)
+	zp.doProjection()
+	zpimp = zp.getProjection()
+	return (zpimp)
+
 processDirectory()
